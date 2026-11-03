@@ -41,11 +41,11 @@ public final class STApplePurchaseManager {
                 do {
                     try await self.finalizeVerifiedTransaction(snapshot, transaction: transaction)
                 } catch {
-                    self.logger?.log("transaction \(snapshot.id) finalize failed, kept unfinished for retry: \(error.localizedDescription)")
+                    await self.logFinalizeFailure(transactionID: snapshot.id, error: error)
                 }
             },
             onVerificationFailure: { [weak self] productID, transactionID, error in
-                self?.logger?.log("transaction \(transactionID) (product \(productID)) verification failed: \(error)")
+                await self?.logVerificationFailure(productID: productID, transactionID: transactionID, error: error)
             }
         )
     }
@@ -188,5 +188,13 @@ public final class STApplePurchaseManager {
         } catch {
             self.logger?.log("purchase status sync failed for transaction \(transaction.id): \(error.localizedDescription)")
         }
+    }
+
+    private func logFinalizeFailure(transactionID: UInt64, error: any Error) {
+        self.logger?.log("transaction \(transactionID) finalize failed, kept unfinished for retry: \(error.localizedDescription)")
+    }
+
+    private func logVerificationFailure(productID: String, transactionID: UInt64, error: any Error) {
+        self.logger?.log("transaction \(transactionID) (product \(productID)) verification failed: \(error)")
     }
 }

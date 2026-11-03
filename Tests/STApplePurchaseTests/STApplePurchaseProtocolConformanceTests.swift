@@ -76,17 +76,18 @@ final class STApplePurchaseProtocolConformanceTests: XCTestCase {
         XCTAssertEqual(validator.lastSignedPayload, transaction.signedPayload)
     }
 
+    @MainActor
     func testStatusSyncerLogsFailureWithoutThrowing() async {
+        let manager = STApplePurchaseManager()
         let syncer = MockStatusSyncer()
         syncer.shouldThrow = true
         let logger = MockLogger()
+        manager.statusSyncer = syncer
+        manager.logger = logger
 
-        do {
-            try await syncer.syncPurchaseStatus(transaction: makeTransaction())
-            XCTFail("mock should throw")
-        } catch {
-            logger.log("sync failed: \(error.localizedDescription)")
-        }
+        // 走 manager 自身的同步失败处理路径（restorePurchases() 复用的那条），
+        // 而不是直接调用 mock，确保删掉 manager 里的日志记录逻辑时这个测试会失败。
+        await manager.syncPurchaseStatusLoggingFailure(for: makeTransaction())
 
         XCTAssertEqual(logger.messages.count, 1)
         XCTAssertEqual(syncer.syncedPurchaseCount, 0)

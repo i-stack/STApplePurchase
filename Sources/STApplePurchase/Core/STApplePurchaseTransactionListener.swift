@@ -17,14 +17,14 @@ final class STApplePurchaseTransactionListener {
 
     func start(
         onVerifiedTransaction: @escaping @Sendable (STApplePurchaseTransaction, Transaction) async -> Void,
-        onVerificationFailure: (@Sendable (String, UInt64, any Error) -> Void)? = nil
+        onVerificationFailure: (@Sendable (String, UInt64, any Error) async -> Void)? = nil
     ) {
         self.stop()
         self.updatesTask = Task.detached {
             for await update in Transaction.updates {
                 switch update {
                 case .unverified(let unverifiedTransaction, let error):
-                    onVerificationFailure?(unverifiedTransaction.productID, unverifiedTransaction.id, error)
+                    await onVerificationFailure?(unverifiedTransaction.productID, unverifiedTransaction.id, error)
                 case .verified:
                     guard let (transaction, jwsRepresentation) = try? STApplePurchaseVerifier.checkVerified(update) else {
                         continue
