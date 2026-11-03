@@ -1,5 +1,5 @@
 //
-//  STIAPErrorTests.swift
+//  STApplePurchaseErrorTests.swift
 //  STApplePurchaseTests
 //
 //  Created by 寒江孤影 on 2026/11/3.
@@ -8,10 +8,10 @@
 import XCTest
 @testable import STApplePurchase
 
-final class STIAPErrorTests: XCTestCase {
+final class STApplePurchaseErrorTests: XCTestCase {
     func testAllCasesHaveNonEmptyDescription() {
         let underlying = NSError(domain: "test", code: -1, userInfo: [NSLocalizedDescriptionKey: "underlying"])
-        let cases: [STIAPError] = [
+        let cases: [STApplePurchaseError] = [
             .productNotFound,
             .productLoadFailed(underlying),
             .subscriptionStatusLoadFailed(underlying),
@@ -30,7 +30,7 @@ final class STIAPErrorTests: XCTestCase {
     }
 
     func testReceiptValidationFailedIncludesReason() {
-        let error = STIAPError.receiptValidationFailed("签名不匹配")
+        let error = STApplePurchaseError.receiptValidationFailed("签名不匹配")
         XCTAssertTrue(error.errorDescription?.contains("签名不匹配") ?? false)
     }
 }
