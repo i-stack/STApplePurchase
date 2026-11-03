@@ -10,10 +10,13 @@ import StoreKit
 /// STApplePurchase 对外主入口：商品查询、购买、恢复购买、交易监听、订阅状态查询。
 ///
 /// 本地签名校验（StoreKit 2 `VerificationResult`）始终是强制网关，未通过直接抛错。
-/// `receiptValidator`（后端收据校验）不会被自动调用，是否需要在本地校验通过后
-/// 再做一次后端校验，由宿主 App 自行决定何时调用 `validateReceiptIfNeeded(for:)`。
-/// `statusSyncer`（购买状态同步）在每次本地校验成功的交易后自动调用一次，
-/// 失败只记录日志、不影响主流程。
+/// 购买与交易监听路径把「后端收据校验（`receiptValidator`，若已配置）→ 本地状态同步
+/// （`statusSyncer.syncPurchaseStatus`，若已配置）→ `finish()`」收拢成一个原子流程：
+/// 任一步骤失败都不会调用 `finish()`，交易保留在 unfinished 队列里等待下次重试。
+/// `startListeningForTransactionUpdates()` 启动时会先回放一遍 `Transaction.unfinished`，
+/// 把上次未能完成交付的交易重新走一次该流程。
+/// `restorePurchases()` 面向的是已经确权的历史交易，逐笔同步状态，但同步失败只记录
+/// 日志、不影响恢复结果的返回（这些交易本身已经 finish 过，不存在“保留重试”的概念）。
 @MainActor
 public final class STApplePurchaseManager {
     
@@ -29,13 +32,47 @@ public final class STApplePurchaseManager {
     public init() {}
 
     public func startListeningForTransactionUpdates() {
-        self.listener.start { [weak self] snapshot, _ in
-            await self?.handleVerifiedTransaction(snapshot)
+        Task { [weak self] in
+            await self?.recoverUnfinishedTransactions()
         }
+        self.listener.start(
+            onVerifiedTransaction: { [weak self] snapshot, transaction in
+                guard let self else { return }
+                do {
+                    try await self.finalizeVerifiedTransaction(snapshot, transaction: transaction)
+                } catch {
+                    self.logger?.log("transaction \(snapshot.id) finalize failed, kept unfinished for retry: \(error.localizedDescription)")
+                }
+            },
+            onVerificationFailure: { [weak self] productID, transactionID, error in
+                self?.logger?.log("transaction \(transactionID) (product \(productID)) verification failed: \(error)")
+            }
+        )
     }
 
     public func stopListeningForTransactionUpdates() {
         self.listener.stop()
+    }
+
+    /// 重放一遍尚未 `finish()` 的历史交易（例如上次校验/同步失败、或进程在 `finish()` 前被杀）。
+    /// 已经在 `startListeningForTransactionUpdates()` 里自动调用一次；也可以在需要时手动重试。
+    public func recoverUnfinishedTransactions() async {
+        for await update in Transaction.unfinished {
+            switch update {
+            case .unverified(let unverifiedTransaction, let error):
+                self.logger?.log("unfinished transaction \(unverifiedTransaction.id) (product \(unverifiedTransaction.productID)) verification failed: \(error)")
+            case .verified:
+                guard let (transaction, jwsRepresentation) = try? STApplePurchaseVerifier.checkVerified(update) else {
+                    continue
+                }
+                let snapshot = STApplePurchaseTransaction(transaction: transaction, signedPayload: jwsRepresentation)
+                do {
+                    try await finalizeVerifiedTransaction(snapshot, transaction: transaction)
+                } catch {
+                    self.logger?.log("unfinished transaction \(snapshot.id) retry failed, kept unfinished: \(error.localizedDescription)")
+                }
+            }
+        }
     }
 
     public func loadProducts(productIDs: [String]) async throws -> [STApplePurchaseProduct] {
@@ -61,8 +98,7 @@ public final class STApplePurchaseManager {
         case .success(let verificationResult):
             let (transaction, jwsRepresentation) = try STApplePurchaseVerifier.checkVerified(verificationResult)
             let snapshot = STApplePurchaseTransaction(transaction: transaction, signedPayload: jwsRepresentation)
-            await handleVerifiedTransaction(snapshot)
-            await transaction.finish()
+            try await finalizeVerifiedTransaction(snapshot, transaction: transaction)
             return .success(snapshot)
         case .userCancelled:
             return .userCancelled
@@ -80,7 +116,11 @@ public final class STApplePurchaseManager {
         } catch {
             throw STApplePurchaseError.restoreFailed(error)
         }
-        return await self.currentEntitlements()
+        let entitlements = await self.currentEntitlements()
+        for entitlement in entitlements {
+            await self.syncPurchaseStatusLoggingFailure(for: entitlement)
+        }
+        return entitlements
     }
 
     public func currentEntitlements() async -> [STApplePurchaseTransaction] {
@@ -129,12 +169,24 @@ public final class STApplePurchaseManager {
         }
     }
 
-    private func handleVerifiedTransaction(_ snapshot: STApplePurchaseTransaction) async {
+    /// 把一笔已经通过本地签名校验的交易收拢成原子流程：后端收据校验 → 本地状态同步 → `finish()`。
+    /// 任一步骤抛错都不会执行到 `finish()`，交易继续留在 unfinished 队列里等待重试。
+    private func finalizeVerifiedTransaction(_ snapshot: STApplePurchaseTransaction, transaction: Transaction) async throws {
+        try await validateReceiptIfNeeded(for: snapshot)
+        if let statusSyncer {
+            try await statusSyncer.syncPurchaseStatus(transaction: snapshot)
+        }
+        await transaction.finish()
+    }
+
+    /// 面向“已经确权、不存在保留重试概念”的历史交易（恢复购买）：同步失败只记录日志，不抛错。
+    /// internal 而非 private，便于测试直接验证 manager 自身的日志记录行为。
+    func syncPurchaseStatusLoggingFailure(for transaction: STApplePurchaseTransaction) async {
         guard let statusSyncer else { return }
         do {
-            try await statusSyncer.syncPurchaseStatus(transaction: snapshot)
+            try await statusSyncer.syncPurchaseStatus(transaction: transaction)
         } catch {
-            self.logger?.log("purchase status sync failed for transaction \(snapshot.id): \(error.localizedDescription)")
+            self.logger?.log("purchase status sync failed for transaction \(transaction.id): \(error.localizedDescription)")
         }
     }
 }
