@@ -7,7 +7,6 @@
 
 import Foundation
 
-/// `STApplePurchaseManager.purchase(_:)` 的结果。
 public enum STApplePurchasePurchaseResult: Sendable {
     case success(STApplePurchaseTransaction)
     case userCancelled

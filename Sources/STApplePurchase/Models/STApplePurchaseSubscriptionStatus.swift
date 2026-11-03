@@ -7,7 +7,6 @@
 
 import StoreKit
 
-/// `Product.SubscriptionInfo.Status` 的轻量包装。
 public struct STApplePurchaseSubscriptionStatus: Sendable {
     public let state: Product.SubscriptionInfo.RenewalState
     public let willAutoRenew: Bool

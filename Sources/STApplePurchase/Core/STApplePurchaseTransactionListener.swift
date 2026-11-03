@@ -7,14 +7,14 @@
 
 import StoreKit
 
-/// 把 `Transaction.updates` 包成一个后台 `Task`，
 /// 校验通过后把结果转发给调用方提供的回调。
 final class STApplePurchaseTransactionListener {
+    
     private var updatesTask: Task<Void, Never>?
 
     func start(onVerifiedTransaction: @escaping @Sendable (STApplePurchaseTransaction, Transaction) async -> Void) {
-        stop()
-        updatesTask = Task.detached {
+        self.stop()
+        self.updatesTask = Task.detached {
             for await update in Transaction.updates {
                 guard let (transaction, jwsRepresentation) = try? STApplePurchaseVerifier.checkVerified(update) else {
                     continue
@@ -27,11 +27,11 @@ final class STApplePurchaseTransactionListener {
     }
 
     func stop() {
-        updatesTask?.cancel()
-        updatesTask = nil
+        self.updatesTask?.cancel()
+        self.updatesTask = nil
     }
 
     deinit {
-        updatesTask?.cancel()
+        self.updatesTask?.cancel()
     }
 }

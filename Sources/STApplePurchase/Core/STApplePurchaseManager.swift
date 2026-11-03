@@ -16,44 +16,38 @@ import StoreKit
 /// 失败只记录日志、不影响主流程。
 @MainActor
 public final class STApplePurchaseManager {
+    
     public static let shared = STApplePurchaseManager()
 
+    private let listener = STApplePurchaseTransactionListener()
     public private(set) var products: [STApplePurchaseProduct] = []
 
+    public var logger: STApplePurchaseLogging?
     public var receiptValidator: STApplePurchaseReceiptValidating?
     public var statusSyncer: STApplePurchasePurchaseStatusSyncing?
-    public var logger: STApplePurchaseLogging?
-
-    private let listener = STApplePurchaseTransactionListener()
 
     public init() {}
 
-    // MARK: - Transaction listening
-
     public func startListeningForTransactionUpdates() {
-        listener.start { [weak self] snapshot, _ in
+        self.listener.start { [weak self] snapshot, _ in
             await self?.handleVerifiedTransaction(snapshot)
         }
     }
 
     public func stopListeningForTransactionUpdates() {
-        listener.stop()
+        self.listener.stop()
     }
-
-    // MARK: - Products
 
     public func loadProducts(productIDs: [String]) async throws -> [STApplePurchaseProduct] {
         do {
             let storeProducts = try await Product.products(for: productIDs)
             let mapped = storeProducts.map(STApplePurchaseProduct.init)
-            products = mapped
+            self.products = mapped
             return mapped
         } catch {
             throw STApplePurchaseError.productLoadFailed(error)
         }
     }
-
-    // MARK: - Purchase
 
     public func purchase(_ product: STApplePurchaseProduct) async throws -> STApplePurchasePurchaseResult {
         let result: Product.PurchaseResult
@@ -79,8 +73,6 @@ public final class STApplePurchaseManager {
         }
     }
 
-    // MARK: - Restore
-
     @discardableResult
     public func restorePurchases() async throws -> [STApplePurchaseTransaction] {
         do {
@@ -88,7 +80,7 @@ public final class STApplePurchaseManager {
         } catch {
             throw STApplePurchaseError.restoreFailed(error)
         }
-        return await currentEntitlements()
+        return await self.currentEntitlements()
     }
 
     public func currentEntitlements() async -> [STApplePurchaseTransaction] {
@@ -101,8 +93,6 @@ public final class STApplePurchaseManager {
         }
         return transactions
     }
-
-    // MARK: - Subscription status
 
     public func subscriptionStatus(for groupID: String) async throws -> [STApplePurchaseSubscriptionStatus] {
         let statuses: [Product.SubscriptionInfo.Status]
@@ -131,8 +121,6 @@ public final class STApplePurchaseManager {
         return mapped
     }
 
-    // MARK: - Receipt validation (host-driven)
-
     public func validateReceiptIfNeeded(for transaction: STApplePurchaseTransaction) async throws {
         guard let receiptValidator else { return }
         let passed = try await receiptValidator.validate(transaction: transaction, signedPayload: transaction.signedPayload)
@@ -141,14 +129,12 @@ public final class STApplePurchaseManager {
         }
     }
 
-    // MARK: - Private
-
     private func handleVerifiedTransaction(_ snapshot: STApplePurchaseTransaction) async {
         guard let statusSyncer else { return }
         do {
             try await statusSyncer.syncPurchaseStatus(transaction: snapshot)
         } catch {
-            logger?.log("purchase status sync failed for transaction \(snapshot.id): \(error.localizedDescription)")
+            self.logger?.log("purchase status sync failed for transaction \(snapshot.id): \(error.localizedDescription)")
         }
     }
 }

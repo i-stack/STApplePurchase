@@ -34,7 +34,6 @@ public struct STApplePurchaseTransaction: Identifiable, Sendable {
         self.signedPayload = signedPayload
     }
 
-    /// 便于宿主在测试、Mock 场景下直接构造快照，不依赖真实 StoreKit `Transaction`。
     public init(
         id: UInt64,
         originalID: UInt64,

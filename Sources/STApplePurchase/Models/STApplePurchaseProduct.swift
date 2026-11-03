@@ -7,8 +7,6 @@
 
 import StoreKit
 
-/// StoreKit.Product 的轻量包装，向宿主暴露展示所需的基础信息，
-/// 同时保留底层 `Product` 以便需要更多细节时直接访问。
 public struct STApplePurchaseProduct: Identifiable, Sendable {
     public let id: String
     public let displayName: String

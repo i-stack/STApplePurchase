@@ -7,8 +7,6 @@
 
 import Foundation
 
-/// 可选的日志注入点，宿主可以接到自己的日志系统（如 STLog），
-/// 不注入则 STApplePurchase 内部保持静默。
 public protocol STApplePurchaseLogging {
     func log(_ message: String)
 }
