@@ -1,5 +1,5 @@
 //
-//  STIAPProtocolConformanceTests.swift
+//  STApplePurchaseProtocolConformanceTests.swift
 //  STApplePurchaseTests
 //
 //  Created by 寒江孤影 on 2026/11/3.
@@ -9,44 +9,44 @@ import XCTest
 import StoreKit
 @testable import STApplePurchase
 
-private final class MockLogger: STIAPLogging {
+private final class MockLogger: STApplePurchaseLogging {
     var messages: [String] = []
     func log(_ message: String) {
         messages.append(message)
     }
 }
 
-private final class MockStatusSyncer: STIAPPurchaseStatusSyncing {
+private final class MockStatusSyncer: STApplePurchasePurchaseStatusSyncing {
     var syncedPurchaseCount = 0
     var syncedSubscriptionCount = 0
     var shouldThrow = false
 
-    func syncPurchaseStatus(transaction: STIAPTransaction) async throws {
+    func syncPurchaseStatus(transaction: STApplePurchaseTransaction) async throws {
         if shouldThrow {
             throw NSError(domain: "mock", code: -1)
         }
         syncedPurchaseCount += 1
     }
 
-    func syncSubscriptionStatus(_ statuses: [STIAPSubscriptionStatus], productID: String) async throws {
+    func syncSubscriptionStatus(_ statuses: [STApplePurchaseSubscriptionStatus], productID: String) async throws {
         syncedSubscriptionCount += 1
     }
 }
 
-private final class MockReceiptValidator: STIAPReceiptValidating {
+private final class MockReceiptValidator: STApplePurchaseReceiptValidating {
     var result: Bool = true
     var lastSignedPayload: String?
 
-    func validate(transaction: STIAPTransaction, signedPayload: String) async throws -> Bool {
+    func validate(transaction: STApplePurchaseTransaction, signedPayload: String) async throws -> Bool {
         lastSignedPayload = signedPayload
         return result
     }
 }
 
-final class STIAPProtocolConformanceTests: XCTestCase {
+final class STApplePurchaseProtocolConformanceTests: XCTestCase {
     @MainActor
     func testValidateReceiptIfNeededSkipsWhenNoValidatorConfigured() async throws {
-        let manager = STIAPManager()
+        let manager = STApplePurchaseManager()
         let transaction = makeTransaction()
 
         // 未配置 receiptValidator 时不应抛错，也不应调用任何校验逻辑。
@@ -55,7 +55,7 @@ final class STIAPProtocolConformanceTests: XCTestCase {
 
     @MainActor
     func testValidateReceiptIfNeededThrowsWhenValidatorRejects() async {
-        let manager = STIAPManager()
+        let manager = STApplePurchaseManager()
         let validator = MockReceiptValidator()
         validator.result = false
         manager.receiptValidator = validator
@@ -64,7 +64,7 @@ final class STIAPProtocolConformanceTests: XCTestCase {
         do {
             try await manager.validateReceiptIfNeeded(for: transaction)
             XCTFail("expected receiptValidationFailed")
-        } catch let error as STIAPError {
+        } catch let error as STApplePurchaseError {
             guard case .receiptValidationFailed = error else {
                 XCTFail("unexpected error case: \(error)")
                 return
@@ -92,8 +92,8 @@ final class STIAPProtocolConformanceTests: XCTestCase {
         XCTAssertEqual(syncer.syncedPurchaseCount, 0)
     }
 
-    private func makeTransaction() -> STIAPTransaction {
-        STIAPTransaction(
+    private func makeTransaction() -> STApplePurchaseTransaction {
+        STApplePurchaseTransaction(
             id: 1,
             originalID: 1,
             productID: "com.example.product",

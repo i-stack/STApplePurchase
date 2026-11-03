@@ -1,5 +1,5 @@
 //
-//  STIAPManager.swift
+//  STApplePurchaseManager.swift
 //  STApplePurchase
 //
 //  Created by 寒江孤影 on 2026/11/3.
@@ -15,16 +15,16 @@ import StoreKit
 /// `statusSyncer`（购买状态同步）在每次本地校验成功的交易后自动调用一次，
 /// 失败只记录日志、不影响主流程。
 @MainActor
-public final class STIAPManager {
-    public static let shared = STIAPManager()
+public final class STApplePurchaseManager {
+    public static let shared = STApplePurchaseManager()
 
-    public private(set) var products: [STIAPProduct] = []
+    public private(set) var products: [STApplePurchaseProduct] = []
 
-    public var receiptValidator: STIAPReceiptValidating?
-    public var statusSyncer: STIAPPurchaseStatusSyncing?
-    public var logger: STIAPLogging?
+    public var receiptValidator: STApplePurchaseReceiptValidating?
+    public var statusSyncer: STApplePurchasePurchaseStatusSyncing?
+    public var logger: STApplePurchaseLogging?
 
-    private let listener = STIAPTransactionListener()
+    private let listener = STApplePurchaseTransactionListener()
 
     public init() {}
 
@@ -42,31 +42,31 @@ public final class STIAPManager {
 
     // MARK: - Products
 
-    public func loadProducts(productIDs: [String]) async throws -> [STIAPProduct] {
+    public func loadProducts(productIDs: [String]) async throws -> [STApplePurchaseProduct] {
         do {
             let storeProducts = try await Product.products(for: productIDs)
-            let mapped = storeProducts.map(STIAPProduct.init)
+            let mapped = storeProducts.map(STApplePurchaseProduct.init)
             products = mapped
             return mapped
         } catch {
-            throw STIAPError.productLoadFailed(error)
+            throw STApplePurchaseError.productLoadFailed(error)
         }
     }
 
     // MARK: - Purchase
 
-    public func purchase(_ product: STIAPProduct) async throws -> STIAPPurchaseResult {
+    public func purchase(_ product: STApplePurchaseProduct) async throws -> STApplePurchasePurchaseResult {
         let result: Product.PurchaseResult
         do {
             result = try await product.underlyingProduct.purchase()
         } catch {
-            throw STIAPError.purchaseFailed(error)
+            throw STApplePurchaseError.purchaseFailed(error)
         }
 
         switch result {
         case .success(let verificationResult):
-            let (transaction, jwsRepresentation) = try STIAPVerifier.checkVerified(verificationResult)
-            let snapshot = STIAPTransaction(transaction: transaction, signedPayload: jwsRepresentation)
+            let (transaction, jwsRepresentation) = try STApplePurchaseVerifier.checkVerified(verificationResult)
+            let snapshot = STApplePurchaseTransaction(transaction: transaction, signedPayload: jwsRepresentation)
             await handleVerifiedTransaction(snapshot)
             await transaction.finish()
             return .success(snapshot)
@@ -82,34 +82,34 @@ public final class STIAPManager {
     // MARK: - Restore
 
     @discardableResult
-    public func restorePurchases() async throws -> [STIAPTransaction] {
+    public func restorePurchases() async throws -> [STApplePurchaseTransaction] {
         do {
             try await AppStore.sync()
         } catch {
-            throw STIAPError.restoreFailed(error)
+            throw STApplePurchaseError.restoreFailed(error)
         }
         return await currentEntitlements()
     }
 
-    public func currentEntitlements() async -> [STIAPTransaction] {
-        var transactions: [STIAPTransaction] = []
+    public func currentEntitlements() async -> [STApplePurchaseTransaction] {
+        var transactions: [STApplePurchaseTransaction] = []
         for await entitlement in Transaction.currentEntitlements {
-            guard let (transaction, jwsRepresentation) = try? STIAPVerifier.checkVerified(entitlement) else {
+            guard let (transaction, jwsRepresentation) = try? STApplePurchaseVerifier.checkVerified(entitlement) else {
                 continue
             }
-            transactions.append(STIAPTransaction(transaction: transaction, signedPayload: jwsRepresentation))
+            transactions.append(STApplePurchaseTransaction(transaction: transaction, signedPayload: jwsRepresentation))
         }
         return transactions
     }
 
     // MARK: - Subscription status
 
-    public func subscriptionStatus(for groupID: String) async throws -> [STIAPSubscriptionStatus] {
+    public func subscriptionStatus(for groupID: String) async throws -> [STApplePurchaseSubscriptionStatus] {
         let statuses: [Product.SubscriptionInfo.Status]
         do {
             statuses = try await Product.SubscriptionInfo.status(for: groupID)
         } catch {
-            throw STIAPError.subscriptionStatusLoadFailed(error)
+            throw STApplePurchaseError.subscriptionStatusLoadFailed(error)
         }
 
         let mapped = statuses.map { status in
@@ -117,7 +117,7 @@ public final class STIAPManager {
             // 下一次续订/到期时间取自最新交易的 expirationDate：
             // 自动续订开启时代表下次续订日，关闭时代表本周期到期日。
             let latestTransaction = try? status.transaction.payloadValue
-            return STIAPSubscriptionStatus(
+            return STApplePurchaseSubscriptionStatus(
                 state: status.state,
                 willAutoRenew: renewalInfo?.willAutoRenew ?? false,
                 renewalDate: latestTransaction?.expirationDate,
@@ -133,17 +133,17 @@ public final class STIAPManager {
 
     // MARK: - Receipt validation (host-driven)
 
-    public func validateReceiptIfNeeded(for transaction: STIAPTransaction) async throws {
+    public func validateReceiptIfNeeded(for transaction: STApplePurchaseTransaction) async throws {
         guard let receiptValidator else { return }
         let passed = try await receiptValidator.validate(transaction: transaction, signedPayload: transaction.signedPayload)
         if !passed {
-            throw STIAPError.receiptValidationFailed("后端收据校验未通过")
+            throw STApplePurchaseError.receiptValidationFailed("后端收据校验未通过")
         }
     }
 
     // MARK: - Private
 
-    private func handleVerifiedTransaction(_ snapshot: STIAPTransaction) async {
+    private func handleVerifiedTransaction(_ snapshot: STApplePurchaseTransaction) async {
         guard let statusSyncer else { return }
         do {
             try await statusSyncer.syncPurchaseStatus(transaction: snapshot)

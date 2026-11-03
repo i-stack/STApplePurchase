@@ -1,5 +1,5 @@
 //
-//  STIAPSubscriptionStatus.swift
+//  STApplePurchaseSubscriptionStatus.swift
 //  STApplePurchase
 //
 //  Created by 寒江孤影 on 2026/11/3.
@@ -8,7 +8,7 @@
 import StoreKit
 
 /// `Product.SubscriptionInfo.Status` 的轻量包装。
-public struct STIAPSubscriptionStatus: Sendable {
+public struct STApplePurchaseSubscriptionStatus: Sendable {
     public let state: Product.SubscriptionInfo.RenewalState
     public let willAutoRenew: Bool
     public let renewalDate: Date?

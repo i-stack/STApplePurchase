@@ -1,5 +1,5 @@
 //
-//  STIAPTransactionTests.swift
+//  STApplePurchaseTransactionTests.swift
 //  STApplePurchaseTests
 //
 //  Created by 寒江孤影 on 2026/11/3.
@@ -8,13 +8,13 @@
 import XCTest
 @testable import STApplePurchase
 
-final class STIAPTransactionTests: XCTestCase {
+final class STApplePurchaseTransactionTests: XCTestCase {
     func testMemberwiseInitPopulatesAllFields() {
         let purchaseDate = Date(timeIntervalSince1970: 1_700_000_000)
         let expirationDate = Date(timeIntervalSince1970: 1_705_000_000)
         let revocationDate = Date(timeIntervalSince1970: 1_702_000_000)
 
-        let transaction = STIAPTransaction(
+        let transaction = STApplePurchaseTransaction(
             id: 10,
             originalID: 9,
             productID: "com.example.pro_monthly",
@@ -36,7 +36,7 @@ final class STIAPTransactionTests: XCTestCase {
     }
 
     func testIdentifiableIDMatchesTransactionID() {
-        let transaction = STIAPTransaction(
+        let transaction = STApplePurchaseTransaction(
             id: 77,
             originalID: 77,
             productID: "com.example.coins_small",

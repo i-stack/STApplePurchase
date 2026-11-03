@@ -1,5 +1,5 @@
 //
-//  STIAPError.swift
+//  STApplePurchaseError.swift
 //  STApplePurchase
 //
 //  Created by 寒江孤影 on 2026/11/3.
@@ -8,7 +8,7 @@
 import Foundation
 
 /// STApplePurchase 内购流程中的统一错误类型。
-public enum STIAPError: Error, LocalizedError {
+public enum STApplePurchaseError: Error, LocalizedError {
     /// 请求的商品 ID 未在 App Store 中查到对应商品。
     case productNotFound
     /// 商品列表加载失败。

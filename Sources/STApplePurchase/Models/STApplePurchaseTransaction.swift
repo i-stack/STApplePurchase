@@ -1,5 +1,5 @@
 //
-//  STIAPTransaction.swift
+//  STApplePurchaseTransaction.swift
 //  STApplePurchase
 //
 //  Created by 寒江孤影 on 2026/11/3.
@@ -8,7 +8,7 @@
 import StoreKit
 
 /// 本地已通过 StoreKit 2 签名校验的交易快照。
-public struct STIAPTransaction: Identifiable, Sendable {
+public struct STApplePurchaseTransaction: Identifiable, Sendable {
     public let id: UInt64
     public let originalID: UInt64
     public let productID: String

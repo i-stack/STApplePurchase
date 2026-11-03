@@ -5,18 +5,18 @@
 ## 能力范围
 
 - 商品查询、购买、恢复购买、交易更新监听（`Transaction.updates`）。
-- 本地签名校验：所有交易都先经过 StoreKit 2 的 `VerificationResult` 校验，未通过直接抛 `STIAPError.verificationFailed`，这是强制网关。
+- 本地签名校验：所有交易都先经过 StoreKit 2 的 `VerificationResult` 校验，未通过直接抛 `STApplePurchaseError.verificationFailed`，这是强制网关。
 - 订阅状态查询（`Product.SubscriptionInfo.status(for:)`）。
 - 两个可选协议钩子，由宿主 App 自己实现，**包内不包含任何具体网络请求、不假设任何后端 API 契约**：
-  - `STIAPReceiptValidating`：把本地已校验交易的 `signedPayload`（JWS）发给自有后端做二次校验。
-  - `STIAPPurchaseStatusSyncing`：把购买/订阅状态同步给自有后端。
+  - `STApplePurchaseReceiptValidating`：把本地已校验交易的 `signedPayload`（JWS）发给自有后端做二次校验。
+  - `STApplePurchasePurchaseStatusSyncing`：把购买/订阅状态同步给自有后端。
 
 ## 用法
 
 ```swift
 import STApplePurchase
 
-let manager = STIAPManager.shared
+let manager = STApplePurchaseManager.shared
 manager.receiptValidator = MyBackendReceiptValidator()
 manager.statusSyncer = MyBackendStatusSyncer()
 manager.logger = MyLogAdapter()

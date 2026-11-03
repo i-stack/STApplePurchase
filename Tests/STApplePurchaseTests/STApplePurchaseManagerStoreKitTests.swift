@@ -1,10 +1,10 @@
 //
-//  STIAPManagerStoreKitTests.swift
+//  STApplePurchaseManagerStoreKitTests.swift
 //  STApplePurchaseTests
 //
 //  Created by 寒江孤影 on 2026/11/3.
 //
-//  用 StoreKitTest 本地模拟商店跑通 STIAPManager 的核心购买流程，
+//  用 StoreKitTest 本地模拟商店跑通 STApplePurchaseManager 的核心购买流程，
 //  不联网、不依赖真实 App Store Connect 商品配置。
 //  配置来自 Resources/STApplePurchaseTests.storekit：
 //    - 消耗型商品 com.stapplepurchase.example.coins_small
@@ -15,9 +15,9 @@ import StoreKit
 import StoreKitTest
 @testable import STApplePurchase
 
-final class STIAPManagerStoreKitTests: XCTestCase {
+final class STApplePurchaseManagerStoreKitTests: XCTestCase {
     private var session: SKTestSession!
-    private var manager: STIAPManager!
+    private var manager: STApplePurchaseManager!
 
     private static let consumableProductID = "com.stapplepurchase.example.coins_small"
     private static let subscriptionProductID = "com.stapplepurchase.example.pro_monthly"
@@ -32,7 +32,7 @@ final class STIAPManagerStoreKitTests: XCTestCase {
         session = try SKTestSession(contentsOf: url)
         session.disableDialogs = true
         session.clearTransactions()
-        manager = STIAPManager()
+        manager = STApplePurchaseManager()
     }
 
     @MainActor
@@ -116,12 +116,12 @@ final class STIAPManagerStoreKitTests: XCTestCase {
     }
 }
 
-private final class RecordingStatusSyncer: STIAPPurchaseStatusSyncing {
+private final class RecordingStatusSyncer: STApplePurchasePurchaseStatusSyncing {
     private(set) var syncedPurchaseCount = 0
 
-    func syncPurchaseStatus(transaction: STIAPTransaction) async throws {
+    func syncPurchaseStatus(transaction: STApplePurchaseTransaction) async throws {
         syncedPurchaseCount += 1
     }
 
-    func syncSubscriptionStatus(_ statuses: [STIAPSubscriptionStatus], productID: String) async throws {}
+    func syncSubscriptionStatus(_ statuses: [STApplePurchaseSubscriptionStatus], productID: String) async throws {}
 }

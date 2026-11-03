@@ -25,7 +25,10 @@ let package = Package(
             dependencies: [
                 .target(name: "STApplePurchase")
             ],
-            path: "Tests/STApplePurchaseTests"
+            path: "Tests/STApplePurchaseTests",
+            resources: [
+                .copy("Resources/STApplePurchaseTests.storekit")
+            ]
         ),
     ],
     swiftLanguageVersions: [.v5]
